@@ -150,6 +150,7 @@ No code changes required. Restart the API server and worker after updating crede
 
 ## Documentation
 
+- **[AWS SES Setup Guide](docs/AWS-SES-SETUP-GUIDE.md)** — IAM user creation and full SES configuration for developers
 - **[Complete Documentation](docs/DOCUMENTATION.md)** — Full guide: setup, API reference, features, deployment, testing
 - **[Architecture Guide](docs/ARCHITECTURE.md)** — System diagrams and deployment steps
 

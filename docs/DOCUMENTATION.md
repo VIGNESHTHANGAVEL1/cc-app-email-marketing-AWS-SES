@@ -843,6 +843,8 @@ For 1,00,000 emails with default settings:
 
 ### Setup Steps (Manual — Outside Application)
 
+> **Developer guide:** See [AWS SES Setup Guide](./AWS-SES-SETUP-GUIDE.md) for step-by-step IAM user creation, domain verification, DNS, SNS webhooks, and production access.
+
 1. Create AWS account and enable SES in your chosen region
 2. Verify sending domain or email address
 3. Add DNS records:
