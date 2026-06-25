@@ -11,25 +11,26 @@
 1. [Overview](#1-overview)
 2. [What You Will Configure](#2-what-you-will-configure)
 3. [Before You Start](#3-before-you-start)
-4. [Step 1 — Sign In as Root (One-Time Only)](#4-step-1--sign-in-as-root-one-time-only)
-5. [Step 2 — Create IAM User for SES](#5-step-2--create-iam-user-for-ses)
-6. [Step 3 — Create IAM Policy (Least Privilege)](#6-step-3--create-iam-policy-least-privilege)
-7. [Step 4 — Generate Access Keys](#7-step-4--generate-access-keys)
-8. [Step 5 — Choose AWS Region](#8-step-5--choose-aws-region)
-9. [Step 6 — Verify Your Sending Domain](#9-step-6--verify-your-sending-domain)
-10. [Step 7 — Add DNS Records (SPF, DKIM, DMARC)](#10-step-7--add-dns-records-spf-dkim-dmarc)
-11. [Step 8 — Configure MAIL FROM Domain (Recommended)](#11-step-8--configure-mail-from-domain-recommended)
-12. [Step 9 — Set Up SNS for Bounce, Complaint & Delivery Events](#12-step-9--set-up-sns-for-bounce-complaint--delivery-events)
-13. [Step 10 — Connect SNS to Application Webhook](#13-step-10--connect-sns-to-application-webhook)
-14. [Step 11 — Request Production Access (Leave Sandbox)](#14-step-11--request-production-access-leave-sandbox)
-15. [Step 12 — Configure Application `.env`](#15-step-12--configure-application-env)
-16. [Step 13 — Test SES Integration](#16-step-13--test-ses-integration)
-17. [Development vs Production Accounts](#17-development-vs-production-accounts)
-18. [IAM Policy Reference (Copy-Paste)](#18-iam-policy-reference-copy-paste)
-19. [DNS Record Cheat Sheet](#19-dns-record-cheat-sheet)
-20. [Troubleshooting](#20-troubleshooting)
-21. [Security Checklist](#21-security-checklist)
-22. [Quick Reference Card](#22-quick-reference-card)
+4. [Sandbox Path — No Domain Required](#4-sandbox-path--no-domain-required)
+5. [Step 1 — Sign In as Root (One-Time Only)](#5-step-1--sign-in-as-root-one-time-only)
+6. [Step 2 — Create IAM User for SES](#6-step-2--create-iam-user-for-ses)
+7. [Step 3 — Create IAM Policy (Least Privilege)](#7-step-3--create-iam-policy-least-privilege)
+8. [Step 4 — Generate Access Keys](#8-step-4--generate-access-keys)
+9. [Step 5 — Choose AWS Region](#9-step-5--choose-aws-region)
+10. [Step 6 — Verify Your Sending Domain](#10-step-6--verify-your-sending-domain)
+11. [Step 7 — Add DNS Records (SPF, DKIM, DMARC)](#11-step-7--add-dns-records-spf-dkim-dmarc)
+12. [Step 8 — Configure MAIL FROM Domain (Recommended)](#12-step-8--configure-mail-from-domain-recommended)
+13. [Step 9 — Set Up SNS for Bounce, Complaint & Delivery Events](#13-step-9--set-up-sns-for-bounce-complaint--delivery-events)
+14. [Step 10 — Connect SNS to Application Webhook](#14-step-10--connect-sns-to-application-webhook)
+15. [Step 11 — Request Production Access (Leave Sandbox)](#15-step-11--request-production-access-leave-sandbox)
+16. [Step 12 — Configure Application `.env`](#16-step-12--configure-application-env)
+17. [Step 13 — Test SES Integration](#17-step-13--test-ses-integration)
+18. [Development vs Production Accounts](#18-development-vs-production-accounts)
+19. [IAM Policy Reference (Copy-Paste)](#19-iam-policy-reference-copy-paste)
+20. [DNS Record Cheat Sheet](#20-dns-record-cheat-sheet)
+21. [Troubleshooting](#21-troubleshooting)
+22. [Security Checklist](#22-security-checklist)
+23. [Quick Reference Card](#23-quick-reference-card)
 
 ---
 
@@ -48,6 +49,15 @@ This guide walks you through:
 2. Using that **IAM user** for all SES configuration
 3. Wiring SES → SNS → your application webhook
 4. Putting credentials into `backend/.env`
+
+### Choose your setup path
+
+| Path | When to use | Domain required? |
+|------|-------------|------------------|
+| **[Sandbox (no domain)](#4-sandbox-path--no-domain-required)** | Local dev, demos, first integration tests | No — verify individual email addresses only |
+| **Full production setup** | Real campaigns, bulk sending, production | Yes — Steps 6–11 |
+
+> **No domain yet?** Start with [Section 4 — Sandbox Path](#4-sandbox-path--no-domain-required). You can complete domain verification and production access later without changing application code.
 
 > **Important:** This application reads AWS config **only from `.env`**. No code changes are needed when switching from test to production credentials.
 
@@ -89,7 +99,7 @@ graph LR
 |-----------------|-------------------|
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | IAM user access keys |
 | `AWS_REGION` | SES region (e.g. `us-east-1`) |
-| `SES_FROM_EMAIL` | Verified domain email (e.g. `noreply@yourdomain.com`) |
+| `SES_FROM_EMAIL` | Verified domain email (e.g. `noreply@yourdomain.com`) — or any **verified email address** in sandbox |
 | `SES_FROM_NAME` | Display name (app config only) |
 | Bounce tracking | SNS → webhook |
 | Complaint tracking | SNS → webhook |
@@ -101,6 +111,17 @@ graph LR
 ## 3. Before You Start
 
 ### Collect this information first
+
+**Sandbox path (no domain):**
+
+| Item | Example | Your Value |
+|------|---------|------------|
+| AWS Account ID | `123456789012` | _____________ |
+| Sender email (must be real inbox you control) | `you@gmail.com` | _____________ |
+| Test recipient email(s) | `colleague@gmail.com` | _____________ |
+| AWS Region | `us-east-1` | _____________ |
+
+**Full setup path (with domain):**
 
 | Item | Example | Your Value |
 |------|---------|------------|
@@ -114,7 +135,13 @@ graph LR
 
 ### Prerequisites
 
+**Sandbox path:**
 - [ ] AWS root account login (for IAM user creation only)
+- [ ] A real email address you can access (for sender verification)
+- [ ] One or more test recipient emails you can verify in SES
+- [ ] Backend API running locally (`npm run dev` + `npm run worker`)
+
+**Full setup path (additionally):**
 - [ ] Access to your domain's DNS management panel
 - [ ] Backend API deployed and publicly reachable (for SNS HTTPS subscription in staging/production)
 - [ ] For local dev: use a tunnel tool (ngrok / Cloudflare Tunnel) if testing webhooks locally
@@ -132,7 +159,204 @@ graph LR
 
 ---
 
-## 4. Step 1 — Sign In as Root (One-Time Only)
+## 4. Sandbox Path — No Domain Required
+
+Use this path when you **do not own a sending domain** yet but need to run and test the email marketing application locally or in a dev environment.
+
+New AWS accounts start in **SES sandbox mode** automatically. Sandbox mode works with **verified email addresses** only — no DNS records or domain purchase required.
+
+### What you will and won't do
+
+| Step | Sandbox path | Full setup path |
+|------|--------------|-----------------|
+| Steps 1–5 (IAM, keys, region) | ✅ Required | ✅ Required |
+| Step 6 — Domain verification | ⏭️ Skip | ✅ Required |
+| Step 7 — DNS (SPF, DKIM, DMARC) | ⏭️ Skip | ✅ Required |
+| Step 8 — MAIL FROM domain | ⏭️ Skip | ✅ Recommended |
+| Steps 9–10 — SNS webhooks | ⚠️ Optional for first send test | ✅ Required |
+| Step 11 — Production access | ⏭️ Skip until you have a domain | ✅ Required for bulk sending |
+| Steps 12–13 — `.env` + testing | ✅ Required (sandbox values) | ✅ Required |
+
+### Sandbox limitations (important)
+
+| Restriction | What it means for you |
+|-------------|----------------------|
+| **Verified recipients only** | Every email you send to must be verified in SES first (or use SES mailbox simulators) |
+| **Verified sender only** | `SES_FROM_EMAIL` must be a verified email address — not an unverified `@yourdomain.com` |
+| **200 emails/day** | Enough for development and QA |
+| **1 email/second** | Set `EMAIL_RATE_LIMIT_PER_SECOND=1` in `.env` |
+| **No real bulk campaigns** | Cannot send to arbitrary subscriber lists until you leave sandbox |
+
+### 4.1 Confirm sandbox mode
+
+1. Sign in as your IAM user (`email-marketing-ses`)
+2. Open **SES** → **Account dashboard** (ensure correct region, e.g. `us-east-1`)
+3. Under **Sending status**, you should see **Sandbox**
+
+If it already shows **Production**, you can still use verified emails, but the recipient restriction may be lifted.
+
+### 4.2 Verify your sender email address
+
+This becomes your `SES_FROM_EMAIL`. Use a real inbox you control (Gmail, Outlook, work email, etc.).
+
+1. **SES** → **Verified identities** → **Create identity**
+2. Configure:
+
+| Field | Value |
+|-------|-------|
+| Identity type | **Email address** |
+| Email address | `you@gmail.com` (your real sender) |
+
+3. Click **Create identity**
+4. Open the verification email from AWS and click the link
+5. In **Verified identities**, status should show **Verified**
+
+> **Tip:** Gmail and most providers work fine. Avoid disposable email services — SES may reject them.
+
+### 4.3 Verify test recipient email addresses
+
+In sandbox, **every recipient** must also be verified — you cannot send to random addresses.
+
+For each person who will receive test emails:
+
+1. **SES** → **Verified identities** → **Create identity**
+2. Identity type: **Email address**
+3. Enter the recipient email (e.g. `teammate@gmail.com`)
+4. They must click the verification link in their inbox
+
+**Alternative — SES mailbox simulators (no inbox needed):**
+
+These special addresses simulate delivery events and work without verification:
+
+| Address | Simulates |
+|---------|-----------|
+| `success@simulator.amazonses.com` | Successful delivery |
+| `bounce@simulator.amazonses.com` | Hard bounce |
+| `complaint@simulator.amazonses.com` | Spam complaint |
+| `suppressionlist@simulator.amazonses.com` | Suppressed address |
+
+Add simulator addresses as subscribers in the app for automated bounce/complaint testing.
+
+### 4.4 Complete IAM setup (Steps 1–5)
+
+If you have not already:
+
+1. [Step 1](#5-step-1--sign-in-as-root-one-time-only) — Create IAM user (root, one-time)
+2. [Step 2](#6-step-2--create-iam-user-for-ses) — IAM user `email-marketing-ses`
+3. [Step 3](#7-step-3--create-iam-policy-least-privilege) — Attach `EmailMarketingSESPolicy`
+4. [Step 4](#8-step-4--generate-access-keys) — Generate access keys
+5. [Step 5](#9-step-5--choose-aws-region) — Choose region (e.g. `us-east-1`)
+
+### 4.5 Configure `backend/.env` for sandbox
+
+Copy `backend/.env.example` to `backend/.env`:
+
+```env
+# AWS SES — from IAM access keys (Step 4)
+AWS_ACCESS_KEY_ID=AKIA....................
+AWS_SECRET_ACCESS_KEY=........................................
+AWS_REGION=us-east-1
+
+# Verified sender email (Section 4.2) — NOT a domain address
+SES_FROM_EMAIL=you@gmail.com
+SES_FROM_NAME=Email Marketing Dev
+
+# Local URLs for development
+APP_URL=http://localhost:3000
+API_URL=http://localhost:4000
+
+# Sandbox rate limits
+EMAIL_BATCH_SIZE=10
+EMAIL_RATE_LIMIT_PER_SECOND=1
+EMAIL_MAX_RETRIES=3
+EMAIL_RETRY_DELAY_MS=5000
+```
+
+| Variable | Sandbox note |
+|----------|--------------|
+| `SES_FROM_EMAIL` | Must exactly match a **verified email identity** in SES |
+| `EMAIL_RATE_LIMIT_PER_SECOND` | Must be `1` in sandbox |
+| `APP_URL` / `API_URL` | Use `localhost` for local dev |
+
+Restart after changes:
+
+```bash
+cd backend
+npm run dev        # terminal 1
+npm run worker     # terminal 2
+```
+
+### 4.6 Send your first sandbox test
+
+1. Confirm health check:
+   ```bash
+   curl http://localhost:4000/api/v1/health
+   ```
+
+2. In the app UI:
+   - Create a subscriber list
+   - Add **only verified recipient emails** (Section 4.3)
+   - Create a simple HTML template with `{{unsubscribe_url}}`
+   - Create a campaign → select list + template → **Send**
+
+3. Watch worker logs for send status:
+   ```bash
+   # If using pm2:
+   pm2 logs email-marketing-worker
+   ```
+
+4. Check the recipient inbox (and spam folder)
+
+5. Confirm in database:
+   ```sql
+   SELECT id, email, status, ses_message_id, sent_at, error_message
+   FROM send_logs
+   ORDER BY id DESC
+   LIMIT 10;
+   ```
+   Expected status: `sent`
+
+### 4.7 SNS webhooks in sandbox (optional)
+
+Bounce and delivery tracking via SNS requires a **public HTTPS** webhook URL. For local-only sandbox testing, you can skip Steps 9–10 initially and still verify that emails send.
+
+When you are ready to test webhooks locally:
+
+1. Complete [Steps 9–10](#13-step-9--set-up-sns-for-bounce-complaint--delivery-events) (SNS topics + configuration set)
+2. Use [ngrok](#14-step-10--connect-sns-to-application-webhook) to expose `http://localhost:4000`
+3. Subscribe SNS to `https://<ngrok-id>.ngrok-free.app/api/v1/webhooks/ses`
+
+### 4.8 Common sandbox errors
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `MessageRejected: Email address is not verified` | Recipient not verified in SES | Verify recipient in Section 4.3, or use a simulator address |
+| `MessageRejected: Email address is not verified` (sender) | `SES_FROM_EMAIL` doesn't match verified identity | Re-check Section 4.2; `.env` must match exactly |
+| `Throttling` | Exceeded 1 email/second | Set `EMAIL_RATE_LIMIT_PER_SECOND=1` |
+| Emails queued but not sent | Worker not running | Run `npm run worker` in a second terminal |
+| Daily quota exceeded | Sent more than 200/day | Wait 24 hours or request production access |
+
+### 4.9 When you're ready for production
+
+Once you have a domain:
+
+1. Complete [Step 6](#10-step-6--verify-your-sending-domain) — Verify sending domain
+2. Complete [Step 7](#11-step-7--add-dns-records-spf-dkim-dmarc) — Add DNS records
+3. Complete [Steps 8–10](#12-step-8--configure-mail-from-domain-recommended) — MAIL FROM + SNS webhooks
+4. Complete [Step 11](#15-step-11--request-production-access-leave-sandbox) — Request production access
+5. Update `.env`:
+   ```env
+   SES_FROM_EMAIL=noreply@yourdomain.com
+   EMAIL_RATE_LIMIT_PER_SECOND=14
+   APP_URL=https://email.yourdomain.com
+   API_URL=https://api.email.yourdomain.com
+   ```
+
+No application code changes are required — only AWS configuration and `.env` updates.
+
+---
+
+## 5. Step 1 — Sign In as Root (One-Time Only)
 
 1. Go to [https://aws.amazon.com/console/](https://aws.amazon.com/console/)
 2. Sign in with **root user** email and password
@@ -148,7 +372,7 @@ graph LR
 
 ---
 
-## 5. Step 2 — Create IAM User for SES
+## 6. Step 2 — Create IAM User for SES
 
 ### 5.1 Open IAM Console
 
@@ -192,13 +416,13 @@ If you enabled console access:
 
 ---
 
-## 6. Step 3 — Create IAM Policy (Least Privilege)
+## 7. Step 3 — Create IAM Policy (Least Privilege)
 
 ### 6.1 Create the policy
 
 1. Go to **IAM** → **Policies** → **Create policy**
 2. Click **JSON** tab
-3. Paste the policy from [Section 18](#18-iam-policy-reference-copy-paste)
+3. Paste the policy from [Section 19](#19-iam-policy-reference-copy-paste)
 4. Click **Next**
 5. Policy name: `EmailMarketingSESPolicy`
 6. Description: `SES send + SNS setup for Email Marketing Application`
@@ -227,7 +451,7 @@ If you enabled console access:
 
 ---
 
-## 7. Step 4 — Generate Access Keys
+## 8. Step 4 — Generate Access Keys
 
 > **Do this while signed in as the IAM user** (or as root attaching keys to that user).
 
@@ -261,7 +485,7 @@ Secret access key: ........................................
 
 ---
 
-## 8. Step 5 — Choose AWS Region
+## 9. Step 5 — Choose AWS Region
 
 SES is **region-specific**. Pick one region and use it consistently.
 
@@ -289,7 +513,9 @@ AWS_REGION=us-east-1
 
 ---
 
-## 9. Step 6 — Verify Your Sending Domain
+## 10. Step 6 — Verify Your Sending Domain
+
+> **No domain?** Use the [Sandbox Path (Section 4)](#4-sandbox-path--no-domain-required) instead — verify individual email addresses and skip this step.
 
 Domain verification is **required** before you can send from `@yourdomain.com` addresses.
 
@@ -324,17 +550,20 @@ Keep this page open. You will add these in Step 7.
 
 ### 9.4 Alternative: Verify a single email (sandbox testing only)
 
-For quick sandbox testing without DNS access:
+For quick sandbox testing without DNS access, see the full walkthrough in [Section 4 — Sandbox Path](#4-sandbox-path--no-domain-required).
+
+Summary:
 
 1. **Create identity** → type: **Email address**
-2. Enter e.g. `noreply@yourdomain.com`
+2. Enter your real sender email (e.g. `you@gmail.com`)
 3. Check inbox for verification link and click it
+4. Verify each test recipient the same way
 
 > For production bulk sending, **domain verification is required**. Single-email verification is not sufficient for campaigns.
 
 ---
 
-## 10. Step 7 — Add DNS Records (SPF, DKIM, DMARC)
+## 11. Step 7 — Add DNS Records (SPF, DKIM, DMARC)
 
 Log in to your DNS provider (Cloudflare, Route 53, GoDaddy, etc.) and add the following records.
 
@@ -424,7 +653,7 @@ dig TXT _dmarc.yourdomain.com +short
 
 ---
 
-## 11. Step 8 — Configure MAIL FROM Domain (Recommended)
+## 12. Step 8 — Configure MAIL FROM Domain (Recommended)
 
 A custom MAIL FROM domain improves deliverability and aligns SPF with SES.
 
@@ -456,7 +685,7 @@ In SES identity details, MAIL FROM status should show **Successful**.
 
 ---
 
-## 12. Step 9 — Set Up SNS for Bounce, Complaint & Delivery Events
+## 13. Step 9 — Set Up SNS for Bounce, Complaint & Delivery Events
 
 Your application tracks bounces, complaints, and deliveries via the webhook endpoint:
 
@@ -537,7 +766,7 @@ Create **three** event destinations:
 
 ---
 
-## 13. Step 10 — Connect SNS to Application Webhook
+## 14. Step 10 — Connect SNS to Application Webhook
 
 ### 13.1 Webhook URL
 
@@ -620,7 +849,7 @@ https://abc123.ngrok-free.app/api/v1/webhooks/ses
 
 ---
 
-## 14. Step 11 — Request Production Access (Leave Sandbox)
+## 15. Step 11 — Request Production Access (Leave Sandbox)
 
 New SES accounts start in **sandbox mode**.
 
@@ -693,7 +922,7 @@ suppression lists in our MySQL database.
 
 ---
 
-## 15. Step 12 — Configure Application `.env`
+## 16. Step 12 — Configure Application `.env`
 
 Copy `backend/.env.example` to `backend/.env` and set:
 
@@ -725,7 +954,7 @@ EMAIL_RETRY_DELAY_MS=5000
 | `AWS_ACCESS_KEY_ID` | IAM user → Security credentials | Never commit to Git |
 | `AWS_SECRET_ACCESS_KEY` | IAM user → Security credentials | Shown once at creation |
 | `AWS_REGION` | SES console region | Must match where domain is verified |
-| `SES_FROM_EMAIL` | Must be on verified domain | e.g. `noreply@yourdomain.com` |
+| `SES_FROM_EMAIL` | Must be on verified domain | e.g. `noreply@yourdomain.com` — or any verified email in sandbox (see Section 4) |
 | `SES_FROM_NAME` | Your choice | Display name in inbox |
 | `EMAIL_RATE_LIMIT_PER_SECOND` | SES sending quota | 1 for sandbox, 14+ for production |
 
@@ -741,7 +970,7 @@ npm run worker     # terminal 2
 
 ---
 
-## 16. Step 13 — Test SES Integration
+## 17. Step 13 — Test SES Integration
 
 ### 16.1 Health check
 
@@ -755,6 +984,8 @@ Expected:
 ```
 
 ### 16.2 Sandbox send test
+
+> For the full no-domain sandbox walkthrough, see [Section 4](#4-sandbox-path--no-domain-required).
 
 1. In SES, verify a **test recipient** email (e.g. your personal Gmail)
 2. In the app, create a list, add that email as subscriber
@@ -829,7 +1060,7 @@ Verify:
 
 ---
 
-## 17. Development vs Production Accounts
+## 18. Development vs Production Accounts
 
 This project supports swapping credentials via `.env` only (Story 10).
 
@@ -837,7 +1068,7 @@ This project supports swapping credentials via `.env` only (Story 10).
 
 | Environment | AWS Account | IAM User | SES Mode |
 |------------|-------------|----------|----------|
-| Development | Dev AWS account (or same account) | `email-marketing-ses-dev` | Sandbox |
+| Development | Dev AWS account (or same account) | `email-marketing-ses-dev` | Sandbox ([Section 4](#4-sandbox-path--no-domain-required)) |
 | Staging | Staging AWS account | `email-marketing-ses-staging` | Production (low volume) |
 | Production | Production AWS account | `email-marketing-ses-prod` | Production |
 
@@ -855,13 +1086,13 @@ SES_FROM_EMAIL=noreply@yourproductiondomain.com
 ```
 
 4. Restart: `pm2 restart all`
-5. Run smoke test (Section 16)
+5. Run smoke test (Section 17)
 
 **No application code changes required.**
 
 ---
 
-## 18. IAM Policy Reference (Copy-Paste)
+## 19. IAM Policy Reference (Copy-Paste)
 
 Create this policy in **IAM** → **Policies** → **Create policy** → **JSON**:
 
@@ -945,7 +1176,7 @@ Use the **full policy** for initial setup, then optionally switch to **send-only
 
 ---
 
-## 19. DNS Record Cheat Sheet
+## 20. DNS Record Cheat Sheet
 
 Replace `yourdomain.com` and `us-east-1` with your values.
 
@@ -962,7 +1193,7 @@ Replace `yourdomain.com` and `us-east-1` with your values.
 
 ---
 
-## 20. Troubleshooting
+## 21. Troubleshooting
 
 ### IAM / Credentials
 
@@ -1003,11 +1234,11 @@ Replace `yourdomain.com` and `us-east-1` with your values.
 |---------|----------|
 | Emails queued but not sent | Ensure worker is running: `npm run worker` or `pm2 status` |
 | Worker can't connect to Redis | Start Redis: `redis-cli ping` should return `PONG` |
-| Wrong from address in emails | `SES_FROM_EMAIL` must match verified domain |
+| Wrong from address in emails | `SES_FROM_EMAIL` must match a verified SES identity (domain email or verified address in sandbox) |
 
 ---
 
-## 21. Security Checklist
+## 22. Security Checklist
 
 ### Root account
 - [ ] MFA enabled on root user
@@ -1023,6 +1254,13 @@ Replace `yourdomain.com` and `us-east-1` with your values.
 - [ ] `.env` listed in `.gitignore`
 
 ### SES
+
+**Sandbox (no domain):**
+- [ ] Sender email verified in SES
+- [ ] Test recipient emails verified (or using mailbox simulators)
+- [ ] `EMAIL_RATE_LIMIT_PER_SECOND=1` in `.env`
+
+**Production (with domain):**
 - [ ] Domain verified with DKIM
 - [ ] SPF and DMARC records added
 - [ ] Production access requested (for bulk sending)
@@ -1035,9 +1273,24 @@ Replace `yourdomain.com` and `us-east-1` with your values.
 
 ---
 
-## 22. Quick Reference Card
+## 23. Quick Reference Card
 
 ### Setup order (do not skip steps)
+
+**Sandbox path (no domain):**
+
+```
+1. Root login → Create IAM user
+2. Attach IAM policy → Generate access keys
+3. Choose region
+4. Verify sender email in SES
+5. Verify test recipient emails (or use mailbox simulators)
+6. Update backend/.env (sandbox values)
+7. Test send → check send_logs
+8. (Optional) SNS webhooks via ngrok
+```
+
+**Full production path:**
 
 ```
 1. Root login → Create IAM user
@@ -1056,11 +1309,24 @@ Replace `yourdomain.com` and `us-east-1` with your values.
 
 ### `.env` values from AWS
 
+**Sandbox (no domain):**
+
+```env
+AWS_ACCESS_KEY_ID=<IAM Access Key ID>
+AWS_SECRET_ACCESS_KEY=<IAM Secret Access Key>
+AWS_REGION=<SES region e.g. us-east-1>
+SES_FROM_EMAIL=you@gmail.com          # verified email, not a domain
+EMAIL_RATE_LIMIT_PER_SECOND=1
+```
+
+**Production (with domain):**
+
 ```env
 AWS_ACCESS_KEY_ID=<IAM Access Key ID>
 AWS_SECRET_ACCESS_KEY=<IAM Secret Access Key>
 AWS_REGION=<SES region e.g. us-east-1>
 SES_FROM_EMAIL=noreply@yourdomain.com
+EMAIL_RATE_LIMIT_PER_SECOND=14
 ```
 
 ### Key URLs
